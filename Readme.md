@@ -1,1 +1,2 @@
-# Project is yet to be selected
+# FaceMatrix
+## Facial expression recognition in C++ with PCA and eigenfaces
