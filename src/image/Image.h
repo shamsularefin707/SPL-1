@@ -1,113 +1,165 @@
 #pragma once
 
-#include <bits/stdc++.h>
+#include <cstdint>
+#include <cstddef>
+#include <vector>
+#include <string>
 #include <stdexcept>
-#include <stdint-gcc.h>
-#include <stddef.h>
 
-using namespace std;
+namespace fer {
 
-namespace fer{
-    class Image{
-        public:
-            Image();
+/**
+ * @brief Represents an uncompressed 2D image with 8-bit unsigned integer channels.
+ *
+ * Supports arbitrary width, height, and channel count (e.g. 1 for grayscale, 3 for RGB).
+ * Pixel memory is stored in row-major order: index = (y * width + x) * channels + c.
+ *
+ * Designed from scratch without external libraries (no OpenCV cv::Mat).
+ */
+class Image {
+public:
+    /// Default constructor creating an empty image.
+    Image();
 
-            Image(int width, int height, int channels, uint8_t initialValue = 0);
-            
-            Image(int width, int height, int channels, vector<uint8_t>& data);
+    /// Constructs an image with specified dimensions and initial pixel value.
+    Image(int width, int height, int channels, uint8_t initialValue = 0);
 
-            Image(int width, int height, int channels, vector<uint8_t>&& data);
+    /// Constructs an image from an existing pixel buffer (copying data).
+    Image(int width, int height, int channels, const std::vector<uint8_t>& data);
 
-            Image(const Image& other);
+    /// Constructs an image from an existing pixel buffer (moving data).
+    Image(int width, int height, int channels, std::vector<uint8_t>&& data);
 
-            Image& operator = (const Image& other);
+    /// Copy constructor (deep copy).
+    Image(const Image& other);
 
-            Image(Image&& other) noexcept;
+    /// Copy assignment operator (deep copy).
+    Image& operator=(const Image& other);
 
-            Image& operator = (Image&& other) noexcept;
+    /// Move constructor.
+    Image(Image&& other) noexcept;
 
-            ~Image() = default;
+    /// Move assignment operator.
+    Image& operator=(Image&& other) noexcept;
 
-            //Dimensions and Queries
+    /// Destructor.
+    ~Image() = default;
 
-            //Returns width, height and channels of the image
-            int width() const noexcept {return width_;}
-            int height() const noexcept {return height_;}
-            int channels() const noexcept {return channels_;}
+    // --- Dimensions and Queries ---
 
-            size_t totalPixels() const noexcept{
-                return static_cast<size_t>(width_) * static_cast<size_t>(height_);
-            }
+    /// Returns the width of the image in pixels.
+    int width() const noexcept { return width_; }
 
-            size_t totalBytes() const noexcept{
-                return static_cast<size_t>(width_) * static_cast<size_t>(height_) * static_cast<size_t>(channels_);
-            }
+    /// Returns the height of the image in pixels.
+    int height() const noexcept { return height_; }
 
-            bool isEmpty() const noexcept{
-                return width_ <= 0 || height_ <= 0 || channels_ <= 0;
-            }
+    /// Returns the number of channels per pixel.
+    int channels() const noexcept { return channels_; }
 
-            bool isValid() const noexcept{
-                return !isEmpty() && data_.size() == totalBytes();
-            }
+    /// Returns the total number of pixels (width * height).
+    size_t totalPixels() const noexcept {
+        return static_cast<size_t>(width_) * static_cast<size_t>(height_);
+    }
 
-            //Pixel Access
-            uint8_t getPixel(int x, int y, int channel) const;
+    /// Returns the total number of bytes in the pixel buffer (width * height * channels).
+    size_t totalBytes() const noexcept {
+        return totalPixels() * static_cast<size_t>(channels_);
+    }
 
-            uint8_t getPixel(int x, int y) const{
-                return getPixel(x, y, 0);
-            }
+    /// Checks if the image has zero dimensions or empty data.
+    bool empty() const noexcept {
+        return width_ <= 0 || height_ <= 0 || channels_ <= 0 || data_.empty();
+    }
 
-            void setPixel(int x, int y, int channel, uint8_t value);
-            
-            void setPixel(int x, int y, uint8_t value){
-                setPixel(x, y, 0, value);
-            }
+    /// Checks if the image dimensions and buffer size are valid and consistent.
+    bool isValid() const noexcept {
+        return !empty() && (data_.size() == totalBytes());
+    }
 
-            //Fast Pixel Access
+    // --- Pixel Access (Safe with Bounds Checking) ---
 
-            uint8_t getPixelFast(int x, int y, int channel) const noexcept{
-                return data_[(static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x))*
-                static_cast<size_t>(channels_) + static_cast<size_t>(channel)];
-            }
+    /**
+     * @brief Gets pixel value at (x, y, channel) with bounds checking.
+     * @throws std::out_of_range if coordinates or channel are invalid.
+     */
+    uint8_t getPixel(int x, int y, int channel) const;
 
-            uint8_t getPixelFast(int x, int y) const noexcept{
-                return getPixelFast(x, y, 0);
-            }
+    /**
+     * @brief Convenience getter for 1-channel (grayscale) images with bounds checking.
+     * @throws std::out_of_range if coordinates are invalid.
+     */
+    uint8_t getPixel(int x, int y) const {
+        return getPixel(x, y, 0);
+    }
 
-            void setPixelFast(int x, int y, int channel, uint8_t value) noexcept{
-                data_[(static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x))*
-                static_cast<size_t>(channels_) + static_cast<size_t>(channel)] = value;
-            }
+    /**
+     * @brief Sets pixel value at (x, y, channel) with bounds checking.
+     * @throws std::out_of_range if coordinates or channel are invalid.
+     */
+    void setPixel(int x, int y, int channel, uint8_t value);
 
-            void setPixelFast(int x, int y, uint8_t value) noexcept{
-                setPixelFast(x, y, 0, value);
-            }
+    /**
+     * @brief Convenience setter for 1-channel (grayscale) images with bounds checking.
+     * @throws std::out_of_range if coordinates are invalid.
+     */
+    void setPixel(int x, int y, uint8_t value) {
+        setPixel(x, y, 0, value);
+    }
 
-            //Data Access
-            const uint8_t* data() const noexcept{
-                return data_.data();
-            }
-            
-            uint8_t* data() noexcept{
-                return data_.data();
-            }
+    // --- Fast Pixel Access (Unchecked for Performance-Critical Loops) ---
 
-            const vector<uint8_t>& dataVector() const noexcept{
-                return data_;
-            }
+    /**
+     * @brief Gets pixel value without bounds checking.
+     */
+    uint8_t getPixelFast(int x, int y, int channel) const noexcept {
+        return data_[(static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x))
+                     * static_cast<size_t>(channels_) + static_cast<size_t>(channel)];
+    }
 
-            vector<uint8_t>& dataVector() noexcept{
-                return data_;
-            }
+    /**
+     * @brief Convenience fast getter for 1-channel (grayscale) images without bounds checking.
+     */
+    uint8_t getPixelFast(int x, int y) const noexcept {
+        return getPixelFast(x, y, 0);
+    }
 
-            private:
-                int width_;
-                int height_;
-                int channels_;
-                vector<uint8_t> data_;
+    /**
+     * @brief Sets pixel value without bounds checking.
+     */
+    void setPixelFast(int x, int y, int channel, uint8_t value) noexcept {
+        data_[(static_cast<size_t>(y) * static_cast<size_t>(width_) + static_cast<size_t>(x))
+              * static_cast<size_t>(channels_) + static_cast<size_t>(channel)] = value;
+    }
 
-                size_t getIndex(int x, int y, int channel) const;
-    
-    };
-}
+    /**
+     * @brief Convenience fast setter for 1-channel (grayscale) images without bounds checking.
+     */
+    void setPixelFast(int x, int y, uint8_t value) noexcept {
+        setPixelFast(x, y, 0, value);
+    }
+
+    // --- Raw Buffer Access ---
+
+    /// Returns a const pointer to the raw pixel buffer.
+    const uint8_t* data() const noexcept { return data_.data(); }
+
+    /// Returns a mutable pointer to the raw pixel buffer.
+    uint8_t* data() noexcept { return data_.data(); }
+
+    /// Returns a const reference to the underlying std::vector.
+    const std::vector<uint8_t>& rawData() const noexcept { return data_; }
+
+    /// Returns a mutable reference to the underlying std::vector.
+    std::vector<uint8_t>& rawData() noexcept { return data_; }
+
+private:
+    int width_{0};
+    int height_{0};
+    int channels_{0};
+    std::vector<uint8_t> data_;
+
+    /// Calculates 1D index from (x, y, channel) with strict bounds checking.
+    size_t getIndex(int x, int y, int channel) const;
+};
+
+} // namespace fer
